@@ -19,5 +19,5 @@ usuario ingrese una opción no válida o una posición que no exista en la lista
 funcionamiento en cada parte relevante.
 
 # Proximos pasos
--. usar la clase consola para crear varias clases, cada consola siendo una instancia del menu de la consola.
--. Usar Django para pasarlo a formato web, pudiendo trabajar desde navegador, con una base de datos en lugar de un archivo json.
+- usar la clase consola para crear varias clases, cada consola siendo una instancia del menu de la consola.
+- Usar Django para pasarlo a formato web, pudiendo trabajar desde navegador, con una base de datos en lugar de un archivo json.
