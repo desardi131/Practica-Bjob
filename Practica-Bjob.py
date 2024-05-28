@@ -36,7 +36,7 @@ class Tarea():
     def eliminar(self) -> None:
         tareas = Tarea.cargar_tareas()
         tareas = [tarea for tarea in tareas if tarea['nombre'] != self.nombre] # Realiza un bucle en el que compara el nombre de la tarea en el archivo
-        Tarea.guardar_tareas_dir(tareas)
+        Tarea.guardar_tareas_dic(tareas)
 
     @classmethod
     def buscar_tarea_por_nombre(cls, nombre:str) -> Optional['Tarea']: 
@@ -59,24 +59,25 @@ class Tarea():
             return []
         
     @classmethod
-    def guardar_tareas_dir(cls, tareas: List[dict]) -> None: # Guarda las tareas en el archivo json
+    def guardar_tareas_dic(cls, tareas: List[dict]) -> None: # Guarda las tareas en el archivo json
         with open(cls.file_path, 'w') as file:
             json.dump(tareas, file, indent=4)
     
     def guardar_tareas(self) -> None:
         tareas = Tarea.cargar_tareas()
         for tarea in tareas:
-            if tarea['nombre'].strip().lower() == self.nombre.strip().lower():
+            if tarea['nombre'].strip().lower() == self.nombre.strip().lower(): # comprueba que la tarea existe y la actualiza
                 tarea['momento_creada'] = self.get_momento_creada()
                 tarea['marcada'] = self.get_marcada()
+                tarea['nombre'] = self.nombre 
                 break
-        else:
-            tareas.append({
+        else: 
+            tareas.append({ # si la tarea no existe previamente, la crea y la introduce
                 'nombre': self.nombre,
                 'momento_creada': self.get_momento_creada(),
                 'marcada': self.get_marcada()
             })
-        Tarea.guardar_tareas_dir(tareas)
+        Tarea.guardar_tareas_dic(tareas)
     
 class Consola():
 
@@ -176,9 +177,18 @@ class Consola():
         tarea = Tarea.buscar_tarea_por_nombre(nombre)
         if tarea != None:
             nuevo_nombre: str = input('Introduce el nuevo nombre de la tarea: ') # Aqui introducimos el nombre nuevo para guardarlo
-            tarea.nombre = nuevo_nombre
-            tarea.guardar_tareas()
-            print(f'El nombre de la tarea ha sido modificado a "{nuevo_nombre}"')
+            if Tarea.buscar_tarea_por_nombre(nuevo_nombre):
+                print(f'Ya existe una tarea con el nombre "{nuevo_nombre}".')
+                return    
+                   
+            tareas = Tarea.cargar_tareas()
+            for tarea_data in tareas:
+                if tarea_data['nombre'].strip().lower() == nombre.strip().lower():
+                    tarea_data['nombre'] = nuevo_nombre
+                    tarea.nombre = nuevo_nombre
+                    Tarea.guardar_tareas_dic()
+                    print(f'El nombre de la tarea ha sido modificado a "{nuevo_nombre}"')
+                    return
         else:
             print(f'No se encontró la tarea con el nombre "{nombre}".')
 
