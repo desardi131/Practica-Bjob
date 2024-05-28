@@ -1,20 +1,20 @@
 ### Clase/s ###
 
 import datetime
+import json
 from typing import List, Optional
 
 class Tarea():
-    tareas: List['Tarea'] = [] # Lista vacia de la clase tarea, la usaremos para almacenar todos los objetos de tipo Tarea
+    file_path = 'tareas.json' # Archivo para almacenar las tareas
 
     # Constructor con nombre como parametro de entrada, __marcada esta por defecto en False y recoge el momento de crearla
-    def __init__(self, nombre) -> None: # No devuelve nada, solo crea el objeto con estas caracteristicas
+    def __init__(self, nombre:str, momento_creada: Optional[datetime.datetime] = None, marcada: bool = False) -> None: 
         self.nombre: str = nombre  # Nombre que recibe la tarea
-        self._marcada: bool = False # nos indica si esta completada o no, por defecto al crear una tarea no estara completada.
-        self.__momento_creada: datetime.datetime = datetime.datetime.now() # Momento de crearla, la usaremos para ordenar la lista de tareas
-        Tarea.tareas.append(self) # Añade la tarea creada a la lista
+        self._marcada: bool = marcada # nos indica si esta completada o no, por defecto al crear una tarea no estara completada.
+        self.__momento_creada: datetime.datetime = momento_creada or datetime.datetime.now() # Momento de crearla, la usaremos para ordenar la lista de tareas
 
     def __str__(self) -> str: # Podemos comprobar el estado de una tarea de manera aislada
-        if self._marcada == False:
+        if not self._marcada:
             return 'La tarea: {}, No completada, creada en el momento {}'.format(self.nombre,str(self.__momento_creada))
         else:
             return 'La tarea: {}, Completada, actualizada en el momento {}'.format(self.nombre,str(self.__momento_creada))
@@ -23,10 +23,10 @@ class Tarea():
         return self._marcada
     
     def set_marcada(self, marca:bool=True) -> None: # Tiene un booleando como entrada y no devuelve nada, nos permite cambiar el estado de la tarea
-        self._marcada = marca
-        self.set_momento_creada()
+        self._marcada = marca # modifica el valor de si esta marcada o no
+        self.set_momento_creada() # Cambia el momento creada, lo actualiza
+        self.guardar_tareas() # Ejecuta la funcion que guarda la informacion en las tareas
       
-
     def get_momento_creada(self) -> str: # Podemos ver el momento en el que se creó la tarea originalmente
         return str(self.__momento_creada) # Hacemos que devuelva un string para visualizarlo, pero sigue siendo un objeto datetime para trabajar con el
     
@@ -34,16 +34,49 @@ class Tarea():
         self.__momento_creada = datetime.datetime.now()            
 
     def eliminar(self) -> None:
-        if self in Tarea.tareas:
-            Tarea.tareas.remove(self)
+        tareas = Tarea.cargar_tareas()
+        tareas = [tarea for tarea in tareas if tarea['nombre'] != self.nombre] # Realiza un bucle en el que compara el nombre de la tarea en el archivo
+        Tarea.guardar_tareas_dir(tareas)
 
     @classmethod
     def buscar_tarea_por_nombre(cls, nombre:str) -> Optional['Tarea']: 
-        
-        for tarea in cls.tareas: # itera la lista que tenemos al generar una tarea
-            if tarea.nombre.strip().lower() == nombre.strip().lower(): # Modifica los strings para hacer una comparacion correcta
-                return tarea # Si la que buscamos se encuentra en la lista de nombres, devuelve la tarea
+        tareas = cls.cargar_tareas()
+        for tarea_data in tareas: 
+            if tarea_data['nombre'].strip().lower() == nombre.strip().lower(): # Modifica los strings para hacer una comparacion correcta
+                return Tarea(
+                    nombre=tarea_data['nombre'],
+                    momento_creada = datetime.datetime.fromisoformat(tarea_data['momento_creada']),
+                    marcada = tarea_data['marcada']
+                ) # Si la que buscamos se encuentra en el archivo json, devuelve la tarea
         return None
+    
+    @classmethod
+    def cargar_tareas(cls) -> List[dict]:
+        try:
+            with open(cls.file_path, 'r') as file: # lee el archivo json y toma las tareas, si no existe el archivo devuelve una lista vacia
+                return json.load(file)
+        except FileNotFoundError:
+            return []
+        
+    @classmethod
+    def guardar_tareas_dir(cls, tareas: List[dict]) -> None: # Guarda las tareas en el archivo json
+        with open(cls.file_path, 'w') as file:
+            json.dump(tareas, file, indent=4)
+    
+    def guardar_tareas(self) -> None:
+        tareas = Tarea.cargar_tareas()
+        for tarea in tareas:
+            if tarea['nombre'].strip().lower() == self.nombre.strip().lower():
+                tarea['momento_creada'] = self.get_momento_creada()
+                tarea['marcada'] = self.get_marcada()
+                break
+        else:
+            tareas.append({
+                'nombre': self.nombre,
+                'momento_creada': self.get_momento_creada(),
+                'marcada': self.get_marcada()
+            })
+        Tarea.guardar_tareas_dir(tareas)
     
 class Consola():
 
@@ -89,7 +122,7 @@ class Consola():
             if accion: # Esto es lo mismo que poner accion == True
                 accion()
             else:
-                print(f'Eleccion erronea: {eleccion}') # Solo aparece si la opcion es erronea
+                print(f'Elección errónea: {eleccion}') # Solo aparece si la opcion es erronea
 
     # Logica Opcion 1
     def opcion_uno(self) -> None: # Menu de eleccion para añadir tareas
@@ -98,6 +131,7 @@ class Consola():
     def anadir_tarea(self) -> Tarea:
         nombre: str = input('Introduce una nueva tarea: ') # Se introduce el nombre por consola. siempre sera un string
         nueva_tarea:Tarea = Tarea(nombre) # Crea la tarea, la cual se introduce en la lista debido a nuestro constructor
+        nueva_tarea.guardar_tareas()
         print(f'La tarea "{nombre}" ha sido añadida.') # Muestra la tarea recien introducida
         return nueva_tarea # Devuelve la tarea para poder trabajar con ella, por ejemplo usando los metedos o cambiandole el nombre
 
@@ -143,6 +177,7 @@ class Consola():
         if tarea != None:
             nuevo_nombre: str = input('Introduce el nuevo nombre de la tarea: ') # Aqui introducimos el nombre nuevo para guardarlo
             tarea.nombre = nuevo_nombre
+            tarea.guardar_tareas()
             print(f'El nombre de la tarea ha sido modificado a "{nuevo_nombre}"')
         else:
             print(f'No se encontró la tarea con el nombre "{nombre}".')
@@ -166,7 +201,6 @@ class Consola():
         tarea = Tarea.buscar_tarea_por_nombre(nombre)
         if tarea != None:
             tarea.eliminar() # Llama al metodo eliminar para sacar la tarea de la lista de tareas
-            del tarea # Usa la palabra designada del para eliminar la informacion en memoria
             print(f'La tarea "{nombre}" ha sido eliminada, ya no existe.')
         else:
             print(f'No se encontró la tarea con el nombre "{nombre}".')
@@ -180,17 +214,23 @@ class Consola():
 ### -----------------------------------------------------------------------------------------------------------------------------###
 def casilla(tar:Tarea) -> None: # Añade una marca al nombre para indicar si esta completada o no
     if tar.get_marcada() == False:
-        print(f'[ ] {Tarea.tareas.index(tar)}. {tar.nombre}')
+        print(f'[ ] {tar.nombre}')
     else:
-        print(f'[X] {Tarea.tareas.index(tar)}. {tar.nombre}')
+        print(f'[X] {tar.nombre}')
 
-def orden_lista(obj_list:List) -> List: 
-    sorted_obj_list = sorted(obj_list, key=lambda obj: obj.get_momento_creada()) # Ordena la lista de tareas, en funcion del momento de crearla o modificarla
+def orden_lista(obj_list:List[dict]) -> List[dict]: 
+    sorted_obj_list = sorted(obj_list, key=lambda obj: obj['momento_creada']) # Ordena la lista de tareas, en funcion del momento de crearla o modificarla
     return sorted_obj_list # Devuelve la lista ordenada
-
-def imprimir_lista():
-    for i in orden_lista(Tarea.tareas): # Imprime las tareas, mostrando si estan marcadas o no
-        casilla(i)
+ 
+def imprimir_lista(): # Carga el archivo Json, toma la lista ordenada de la funcion orden lista y a cada elemento de la lista muestra la tarea, con la info del archivo
+    tareas = Tarea.cargar_tareas() 
+    for tarea_data in orden_lista(tareas): # Imprime las tareas, mostrando si estan marcadas o no
+        tarea = Tarea(
+            nombre = tarea_data['nombre'],
+            momento_creada=datetime.datetime.fromisoformat(tarea_data['momento_creada']),
+            marcada=tarea_data['marcada']
+        )
+        casilla(tarea)
 
 
 if __name__ == '__main__':
