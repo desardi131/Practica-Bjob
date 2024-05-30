@@ -1,0 +1,5 @@
+# Ignorar los archivos .zip ya que actualmente no me interesa guardar ninguno
+*.zip
+
+# Ignora los archivos mp4, no necesitamos videos guardados en github
+*.mp4
